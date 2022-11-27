@@ -13,7 +13,7 @@ SELECT
                        protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
                        MINUTE) AS diff
     FROM
-      `<project>.<dataset>cloudaudit_googleapis_com_data_access`
+      `<project>.<dataset>.cloudaudit_googleapis_com_data_access`
     WHERE
       protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobName.jobId IS NOT NULL
       AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobName.jobId NOT LIKE 'script_job_%' -- filter BQ script child jobs
