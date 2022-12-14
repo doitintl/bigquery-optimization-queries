@@ -1,6 +1,6 @@
 # Introduction
 
-Note that these queries go along with an upcoming ebook about optimizing BigQuery
+Note that these queries go along with an [ebook](https://www.doit.com/resources/the-bigquery-optimization-handbook-preparing-to-save/) about optimizing BigQuery
 costs written by Sayle Matthews of DoiT International.
 
 These queries are to assist in optimizing BigQuery usage in projects and organizations.
