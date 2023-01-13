@@ -1,7 +1,7 @@
 # Introduction
 
 Note that these queries go along with an [ebook](https://www.doit.com/resources/the-bigquery-optimization-handbook-preparing-to-save/) about optimizing BigQuery
-costs written by Sayle Matthews of DoiT International.
+costs written by Sayle Matthews of DoiT International. This also goes along with the Medium series located [here](https://medium.com/doit-international/bigquery-optimizations-part-1-6d188689af1c)
 
 These queries are to assist in optimizing BigQuery usage in projects and organizations.
 Most focus on costs, but there are a few that focus on concurrency and also some that
