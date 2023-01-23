@@ -18,7 +18,7 @@ WITH
     protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobName.jobId IS NOT NULL
     AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobName.jobId NOT LIKE 'script_job_%' -- filter BQ script child jobs
     AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration IS NOT NULL
-    AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.eventName LIKE '%_job_completed'
+    AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.eventName LIKE 'query_job_completed'
     AND protopayload_auditlog.authenticationInfo.principalEmail IS NOT NULL
     AND protopayload_auditlog.authenticationInfo.principalEmail != ""
     AND protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration.dryRun IS NULL
@@ -32,20 +32,21 @@ WITH
   WHERE
     _rnk = 1),
   hashedQueries AS (
-  SELECT
-    src1.query AS query,
-    src1.hashed AS hashed,
-    SUM(src1.totalBilledBytes) AS totalBytesBilled,
-    COUNT(src1.hashed) AS queryCount
-  FROM
-    jobsDeduplicated AS src1,
-    jobsDeduplicated AS src2
-  WHERE
-    src1.hashed = src2.hashed
-    AND src1.jobId <> src2.jobId
-  GROUP BY
-    hashed,
-    query)
+    SELECT
+      src1.query AS query,
+      src1.hashed AS hashed,
+      SUM(src1.totalBilledBytes) AS totalBytesBilled,
+      COUNT(src1.hashed) AS queryCount
+    FROM
+      jobsDeduplicated AS src1,
+      jobsDeduplicated AS src2
+    WHERE
+      src1.hashed = src2.hashed
+      AND src1.jobId <> src2.jobId
+    GROUP BY
+      hashed,
+      query
+  )
 
 SELECT
   query,
