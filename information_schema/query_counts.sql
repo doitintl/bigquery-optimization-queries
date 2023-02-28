@@ -68,7 +68,7 @@ WITH
 SELECT
   query,
   queryCount,
-  ROUND(SAFE_DIVIDE(totalBytesBilled, 102400000000) * 5, 2) AS onDemandCost,
+  ROUND(SAFE_DIVIDE(totalBytesBilled, 1000000000000) * 5, 2) AS onDemandCost,
   ROUND(COALESCE(totalBytesBilled, 0), 2) AS totalBytesBilled,
   ROUND(COALESCE(totalBytesBilled, 0) / 1000000, 2) AS totalMegabytesBilled,
   ROUND(COALESCE(totalBytesBilled, 0) / 1000000000, 2) AS totalGigabytesBilled,
