@@ -11,7 +11,7 @@ WITH src AS (
             protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
             MILLISECOND)) AS approximateSlotCount,
         ROUND(SAFE_DIVIDE(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes, 0),
-            102400000000) * 5, 2) AS onDemandCost,
+            1000000000000) * 5, 2) AS onDemandCost,
         CASE protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.eventName
             WHEN 'query_job_completed' THEN 'QUERY'
             WHEN 'load_job_completed' THEN 'LOAD'

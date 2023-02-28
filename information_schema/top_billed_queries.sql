@@ -22,7 +22,7 @@ BEGIN
         ROUND(COALESCE(total_bytes_billed,
             0) / 1000000000000, 2) AS totalTerabytesBilled,
         ROUND(SAFE_DIVIDE(total_bytes_billed,
-            102400000000) * 5, 2) AS cost,
+            1000000000000) * 5, 2) AS cost,
         ROUND(SAFE_DIVIDE(total_slot_ms,
             TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)), 2) AS approximateSlotCount,
         ROW_NUMBER() OVER(PARTITION BY job_id ORDER BY end_time DESC) AS _rnk
