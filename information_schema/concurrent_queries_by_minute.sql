@@ -4,52 +4,34 @@
 DECLARE interval_in_days INT64 DEFAULT 7;
 
 BEGIN
-WITH src AS (
+WITH
+  src AS (
   SELECT
-    user_email AS user,
-    job_id AS jobId,
-    DATETIME_TRUNC(start_time,
-      MINUTE) AS startTime,
-    DATETIME_TRUNC(end_time,
-      MINUTE) AS endTime,
-    TIMESTAMP_DIFF(end_time, start_time, MINUTE) AS diff,
-    ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY end_time DESC) AS _rnk
+    TIMESTAMP_TRUNC(period_start, MINUTE) AS period_start,
+    job_id,
+    ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY job_creation_time DESC) AS _rnk
   FROM
-    `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+     `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
   WHERE
-    creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
+    job_creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
     AND CURRENT_TIMESTAMP()
-    AND total_slot_ms IS NOT NULL
-    AND job_type = 'QUERY'),
-  jobsDeduplicated AS (
+    AND state = 'DONE'
+    AND job_type = 'QUERY'
+    AND parent_job_id IS NULL),
+  jobsDeduplicatedAndCounted AS (
   SELECT
-    * EXCEPT(_rnk)
+    period_start,
+    COUNT(job_id) AS job_count
   FROM
     src
   WHERE
-    _rnk = 1 ),
-  differences AS (
-  SELECT
-    *,
-    generate_timestamp_array(startTime,
-      endTime,
-      INTERVAL 1 MINUTE) AS int
-  FROM
-    jobsDeduplicated ),
-byMinutes AS (
-  SELECT
-    *
-  FROM
-    differences,
-    UNNEST(int) AS MINUTE )
+    _rnk = 1
+  GROUP BY
+    src.period_start )
 
 SELECT
-  COUNT(*) AS jobCounter,
-  minute AS startMinute
+  *
 FROM
-  byMinutes
-GROUP BY
-  minute
-ORDER BY
-  minute ASC;
+  jobsDeduplicatedAndCounted
+  ORDER BY period_start ASC;
 END

@@ -7,7 +7,7 @@ BEGIN
 WITH
   src AS (
   SELECT
-    TIMESTAMP_TRUNC(period_start, SECOND) AS period_start,
+    TIMESTAMP_TRUNC(period_start, MILLISECOND) AS period_start,
     job_id,
     ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY job_creation_time DESC) AS _rnk
   FROM
