@@ -15,7 +15,6 @@ WITH
   WHERE
     job_creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
     AND CURRENT_TIMESTAMP()
-    AND state = 'DONE'
     AND job_type = 'QUERY'
     AND parent_job_id IS NULL),
   jobsDeduplicatedAndCounted AS (
