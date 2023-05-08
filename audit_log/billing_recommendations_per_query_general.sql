@@ -11,7 +11,7 @@ WITH src AS (
             protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
             MILLISECOND)) AS approximateSlotCount,
         ROUND(SAFE_DIVIDE(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes, 0),
-            1000000000000) * 5, 2) AS onDemandCost,
+            POW(1024, 4)) * 5, 2) AS onDemandCost,
         CASE protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.eventName
             WHEN 'query_job_completed' THEN 'QUERY'
             WHEN 'load_job_completed' THEN 'LOAD'
@@ -25,11 +25,11 @@ WITH src AS (
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
           0), 2) AS totalBytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-          0) / 1000000, 2) AS totalMegabytesBilled,
+          0) / POW(1024, 2), 2) AS totalMegabytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-          0) / 1000000000, 2) AS totalGigabytesBilled,
+          0) / POW(1024, 3), 2) AS totalGigabytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-          0) / 1000000000000, 2) AS totalTerabytesBilled,
+          0) / POW(1024, 4), 2) AS totalTerabytesBilled,
         TIMESTAMP_DIFF(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.endTime,
                         protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
                         MILLISECOND) AS executionTimeMs,

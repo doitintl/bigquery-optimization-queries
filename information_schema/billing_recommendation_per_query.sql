@@ -11,7 +11,7 @@ WITH
     ROUND(SAFE_DIVIDE(total_slot_ms,
         TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)), 2) AS approximateSlotCount,
     ROUND(SAFE_DIVIDE(total_bytes_billed,
-        1000000000000) * 5, 2) AS onDemandCost,
+        POW(1024, 4)) * 5, 2) AS onDemandCost,
     job_type,
     query,
     project_id AS projectId,
@@ -20,11 +20,11 @@ WITH
     ROUND(COALESCE(total_bytes_billed,
         0), 2) AS totalBytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / 1000000, 2) AS totalMegabytesBilled,
+        0) / POW(1024, 2), 2) AS totalMegabytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / 1000000000, 2) AS totalGigabytesBilled,
+        0) / POW(1024, 3), 2) AS totalGigabytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / 1000000000000, 2) AS totalTerabytesBilled,
+        0) / POW(1024, 4), 2) AS totalTerabytesBilled,
     TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs
   FROM
     `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
