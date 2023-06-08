@@ -1,5 +1,6 @@
 -- This query will look at every query ran over the specified timeframe and determine if it is better to be run
--- under an on-demand or flat-rate pricing billing model.
+-- under an on-demand or an Editions pricing billing model. In the final resultset, it will recommend on-demand 
+-- or an Edition (or an Edition with a commit period)
 
 -- Change this value to change how far in the past the query will search
 DECLARE interval_in_days INT64 DEFAULT 14;
@@ -10,8 +11,6 @@ WITH
   SELECT
     ROUND(SAFE_DIVIDE(total_slot_ms,
         TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)), 2) AS approximateSlotCount,
-    ROUND(SAFE_DIVIDE(total_bytes_billed,
-        POW(1024, 4)) * 5, 2) AS onDemandCost,
     job_type,
     query,
     project_id AS projectId,
@@ -35,6 +34,23 @@ WITH
     AND state = "DONE"
   ORDER BY
     approximateSlotCount DESC ),
+  costs AS (
+    SELECT
+      *,
+      ROUND(SAFE_DIVIDE(totalBytesBilled,
+        POW(1024, 4)) * 5, 2) AS legacyOnDemandCost,
+      ROUND(SAFE_DIVIDE(totalBytesBilled,
+        POW(1024, 4)) * 6.25, 2) AS onDemandCost,
+      (approximateSlotCount/(60*60)) * 0.04 AS standardEditionCost,
+      (approximateSlotCount/(60*60)) * 0.06 AS enterpriseEditionCost,
+      (approximateSlotCount/(60*60)) * 0.048 AS enterpriseEdition1YearCost,
+      (approximateSlotCount/(60*60)) * 0.036 AS enterpriseEdition3YearCost,
+      (approximateSlotCount/(60*60)) * 0.1 AS enterprisePlusEditionCost,
+      (approximateSlotCount/(60*60)) * 0.08 AS enterprisePlusEdition1YearCost,
+      (approximateSlotCount/(60*60)) * 0.06 AS enterprisePlusEdition3YearCost,
+    FROM
+      src
+  ),
   queryCounts AS (
   SELECT
     query,
@@ -45,7 +61,7 @@ WITH
     query ),
   recommendations AS (
   SELECT
-    src.query,
+    costs.query,
     projectId,
     startTime,
     endTime,
@@ -54,31 +70,58 @@ WITH
     totalGigabytesBilled,
     totalTerabytesBilled,
     approximateSlotCount,
+
+    legacyOnDemandCost,
     onDemandCost,
-    -- On-Demand recommendation score
-    (onDemandCost * 100) + IF(job_type = 'QUERY',100,200) + IF(executionTimeMs > 60000, 100, 200) +
-        IF(approximateSlotCount > 500,500,100) + (queryCount * onDemandCost * -0.1) +
-        IF(job_type = 'LOAD', 100, 0) + IF(job_type = 'COPY', 100, 0) + IF(job_type = 'EXPORT', 100, 0) AS onDemandScore,
-    -- Flat rate recommendation score
-    (onDemandCost * 125) + IF(job_type = 'QUERY', 200, 100) + IF(executionTimeMs > 60000, 200, 100) +
-        IF(approximateSlotCount > 200, 100, 500) + (queryCount * 0.1 * onDemandCost) AS flatRateScore
+    standardEditionCost,
+    enterpriseEditionCost,
+    enterpriseEdition1YearCost,
+    enterpriseEdition3YearCost,
+    enterprisePlusEditionCost,
+    enterprisePlusEdition1YearCost,
+    enterprisePlusEdition3YearCost,
+
+    onDemandCost - standardEditionCost AS standardEditionComparison,
+    onDemandCost - enterpriseEditionCost AS enterpriseEditionComparison,
+    onDemandCost - enterpriseEdition1YearCost AS enterpriseEdition1YearComparison,
+    onDemandCost - enterpriseEdition3YearCost AS enterpriseEdition3YearComparison,
+    onDemandCost - enterprisePlusEditionCost AS enterprisePlusEditionComparison,
+    onDemandCost - enterprisePlusEdition1YearCost AS enterprisePlusEdition1YearComparison,
+    onDemandCost - enterprisePlusEdition3YearCost AS enterprisePlusEdition3YearComparison
   FROM
-    src
+    costs
   JOIN
     queryCounts
   ON
-    src.query = queryCounts.query )
+    costs.query = queryCounts.query )
 
 SELECT
   query,
-  IF (onDemandScore > flatRateScore, 'On Demand', 'Flat Rate') AS recommendedBilling,
-  ROUND(IF(onDemandScore > flatRateScore,
-      onDemandScore/flatRateScore, flatRateScore/onDemandScore), 2) AS recommendedBillingRatio,
-  projectId,
+  IF(standardEditionComparison > 0, 'On-demand', 'Standard Edition') AS standardEditionRecommendation,
+  IF(enterpriseEditionComparison > 0, 'On-demand', 'Enterprise Edition') AS enterpriseEditionRecommendation,
+  IF(enterpriseEdition1YearComparison > 0, 'On-demand', 'Enterprise Edition 1 Year Commit') AS 
+  enterpriseEdition1YearRecommendation,
+  IF(enterpriseEdition3YearComparison > 0, 'On-demand', 'Enterprise Edition 3 Year Commit') AS enterpriseEdition3YearRecommendation,
+
+  IF(enterpriseEditionComparison > 0, 'On-demand', 'Enterprise Plus Edition') AS enterprisePlusEditionRecommendation,
+  IF(enterpriseEdition1YearComparison > 0, 'On-demand', 'Enterprise Edition 1 Year Commit') AS 
+  enterpriseEditionPlus1YearRecommendation,
+  IF(enterprisePlusEdition3YearComparison > 0, 'On-demand', 'Enterprise Plus Edition 3 Year Commit') AS enterprisePlusEdition3YearRecommendation,
+
   startTime,
   endTime,
   approximateSlotCount,
+
+  legacyOnDemandCost,
   onDemandCost,
+  standardEditionCost,
+  enterpriseEditionCost,
+  enterpriseEdition1YearCost,
+  enterpriseEdition3YearCost,
+  enterprisePlusEditionCost,
+  enterprisePlusEdition1YearCost,
+  enterprisePlusEdition3YearCost,
+
   totalBytesBilled,
   totalMegabytesBilled,
   totalGigabytesBilled,
