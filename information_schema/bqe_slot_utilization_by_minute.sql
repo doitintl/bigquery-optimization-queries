@@ -5,6 +5,17 @@ and Y total approximate slots utilized).  This rowset is then joined
 to reservations timeline data to calculate estimated utilization
 of available slots per minute on a designated BigQuery Editions 
 reservation (not on demand) by a project.  
+
+Result set schema:
+	- period_start: Start time of one minute period for the reservation
+	- reservation_name: Name of the reservation
+	- slots_assigned: The number of slots assigned to this reservation (baseline slots)
+	- current_slots: The number of slots added to the reservation by autoscaling
+	- max_slots: the maximum number of slots that can be added to the reservation by autoscaling
+	- reservation_id: ID of the reservation in the format of "project_id:location.reservation_name"
+	- active_jobs_per_period: Number of jobs running or ran within a period
+	- slots_per_period: Approximate number of slots utilized within a period
+	- utilization_pct: Approximate utilization percentage of current slots within a period
 */
 
 declare interval_in_days int64;
@@ -17,6 +28,7 @@ with reservation_data as
   select
     period_start,
     reservation_name,
+    slots_assigned,
     autoscale.current_slots,
     autoscale.max_slots,
     reservation_id
