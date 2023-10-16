@@ -38,7 +38,7 @@ WITH
     SELECT
       *,
       ROUND(SAFE_DIVIDE(totalBytesBilled,
-        POW(1024, 4)) * 5, 2) AS legacyOnDemandCost,
+        POW(1024, 4)) * 6.25, 2) AS legacyOnDemandCost,
       ROUND(SAFE_DIVIDE(totalBytesBilled,
         POW(1024, 4)) * 6.25, 2) AS onDemandCost,
       (approximateSlotCount/(60*60)) * 0.04 AS standardEditionCost,

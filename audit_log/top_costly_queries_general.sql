@@ -55,7 +55,7 @@ SELECT
   ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 2), 2) AS totalMegabytesBilled,
   ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 3), 2) AS totalGigabytesBilled,
   ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 4), 2) AS totalTerabytesBilled,
-  ROUND(SAFE_DIVIDE(totalBytesBilled, POW(1024, 4)) * 5, 2) AS onDemandCost
+  ROUND(SAFE_DIVIDE(totalBytesBilled, POW(1024, 4)) * 6.25, 2) AS onDemandCost
 FROM
   hashedQueries
 ORDER BY

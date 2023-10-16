@@ -16,7 +16,7 @@ WITH
         referenced_tables AS referencedTables,
         labels,
         ROUND(SAFE_DIVIDE(total_bytes_billed,
-          POW(1024, 4)) * 5, 2) AS onDemandCost,
+          POW(1024, 4)) * 6.25, 2) AS onDemandCost,
         ROUND(COALESCE(total_bytes_billed,
           0), 2) AS totalBytesBilled,
         ROUND(COALESCE(total_bytes_billed,

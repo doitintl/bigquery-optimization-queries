@@ -41,7 +41,7 @@ BEGIN
         ROUND(SUM(COALESCE(totalBilledBytes,
               0)) / POW(1024, 4), 2) AS totalTerabytesBilled,
         ROUND(SAFE_DIVIDE(SUM(COALESCE(totalBilledBytes, 0)),
-          POW(1024, 4)) * 5, 2) AS onDemandCost,
+          POW(1024, 4)) * 6.25, 2) AS onDemandCost,
         labelKey,
         labelValue
     FROM jobsDeduplicated
