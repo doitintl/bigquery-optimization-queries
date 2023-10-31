@@ -7,8 +7,8 @@ out when it comes to considering which provides the most savings.
 
 All numbers are grouped by dataset and considered estimates only.
 */
-DECLARE active_logical_gb_price FLOAT64 DEFAULT 0.02;
-DECLARE long_term_logical_gb_price FLOAT64 DEFAULT 0.01;
+DECLARE active_logical_gb_price FLOAT64 DEFAULT 0.023;
+DECLARE long_term_logical_gb_price FLOAT64 DEFAULT 0.016;
 DECLARE active_physical_gb_price FLOAT64 DEFAULT 0.04;
 DECLARE long_term_physical_gb_price FLOAT64 DEFAULT 0.02;
 
