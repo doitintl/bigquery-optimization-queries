@@ -33,7 +33,7 @@ WITH
         0) / POW(1024, 4), 2) AS totalTerabytesBilled,
     TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs
   FROM
-    `region-US`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+     `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
   WHERE
     creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
     AND CURRENT_TIMESTAMP()
@@ -86,12 +86,14 @@ WITH
     projectId,
     startTime,
     endTime,
+    billedDurationHour AS editionsBilledDurationInHours,
 
     totalBytesBilled,
     totalMegabytesBilled,
     totalGigabytesBilled,
     totalTerabytesBilled,
     approximateSlotCount,
+    roundedUpSlots AS billedSlotCount,
 
     legacyOnDemandCost,
     onDemandCost,
@@ -133,7 +135,9 @@ SELECT
 
   startTime,
   endTime,
+  editionsBilledDurationInHours,
   approximateSlotCount,
+  billedSlotCount,
 
   legacyOnDemandCost,
   onDemandCost,
