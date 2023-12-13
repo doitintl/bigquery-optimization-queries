@@ -43,7 +43,7 @@ labels AS (
         ROUND(SUM(COALESCE(totalBilledBytes,
               0)) / POW(1024, 4), 2) AS totalTerabytesBilled,
         ROUND(SAFE_DIVIDE(SUM(COALESCE(totalBilledBytes, 0)),
-          POW(1024, 4)) * 5, 2) AS onDemandCost,
+          POW(1024, 4)) * 6.25, 2) AS onDemandCost,
         labels.key AS labelKey,
         labels.value AS labelValue
     FROM jobsDeduplicated

@@ -14,7 +14,7 @@ WITH src AS (
         protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.referencedTables as referencedTables,
         protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.labels as labels,
         ROUND(SAFE_DIVIDE(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-            0), POW(1024, 4)) * 5, 2) AS onDemandCost,
+            0), POW(1024, 4)) * 6.25, 2) AS onDemandCost,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
           0), 2) AS totalBytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,

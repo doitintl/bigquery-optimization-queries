@@ -16,7 +16,7 @@ BEGIN
         total_bytes_billed AS totalBytesBilled,
         total_slot_ms AS totalSlotMs,
         ROUND(SAFE_DIVIDE(total_bytes_billed,
-            POW(1024, 4)) * 5, 2) AS cost,
+            POW(1024, 4)) * 6.25, 2) AS cost,
         ROUND(SAFE_DIVIDE(total_slot_ms,
             TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)), 2) AS approximateSlotCount,
         ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY end_time DESC) AS _rnk
