@@ -16,7 +16,7 @@ BEGIN
           start_time AS startTime,
           end_time AS endTime,
           total_bytes_billed AS totalBytesBilled,
-          ROUND(SAFE_DIVIDE(total_bytes_billed, POW(1024, 4)) * 5, 2) AS onDemandCost,
+          ROUND(SAFE_DIVIDE(total_bytes_billed, POW(1024, 4)) * 6.25, 2) AS onDemandCost,
           TIMESTAMP_DIFF(end_time, start_time, SECOND) AS executionTime,
           TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs,
           ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY end_time DESC) AS _rnk
