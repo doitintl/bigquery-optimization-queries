@@ -121,6 +121,7 @@ WITH
     costs.query = queryCounts.query )
 
 SELECT
+  projectid,
   query,
   IF(standardEditionComparison < 0, 'On-demand', 'Standard Edition') AS standardEditionRecommendation,
   IF(enterpriseEditionComparison < 0, 'On-demand', 'Enterprise Edition') AS enterpriseEditionRecommendation,
