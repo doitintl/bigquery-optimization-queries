@@ -23,7 +23,7 @@ BEGIN
     jobsDeduplicated AS (
         SELECT
             user,
-            ROUND(SAFE_DIVIDE(SUM(src.totalBytesBilled), POW(1024, 4)) * 5, 2) AS onDemandCost
+            ROUND(SAFE_DIVIDE(SUM(src.totalBytesBilled), POW(1024, 4)) * 6.25, 2) AS onDemandCost
         FROM
             src
         WHERE
