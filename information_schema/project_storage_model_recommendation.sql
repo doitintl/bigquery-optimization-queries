@@ -136,7 +136,12 @@ final_data AS
     (
       (active_compressed_price+long_term_compressed_price)+
       (time_travel_compressed_price+fail_safe_compressed_price)
-    ) AS difference
+    ) AS difference,
+
+    active_uncompressed_price,
+    active_compressed_price,
+    long_term_uncompressed_price,
+    long_term_compressed_price
   FROM
     calculations
 )
