@@ -3,24 +3,24 @@
 -- Change this value to change how far in the past the query will search
 DECLARE interval_in_days INT64 DEFAULT 7;
 
-DECLARE time_period INT64;
-SET time_period = (1000);  -- Number of milliseconds in a second
+DECLARE time_period INT64 DEFAULT (1000);  -- Number of milliseconds in a second
 
 BEGIN
     WITH src AS (
       SELECT
-        SAFE_DIVIDE(SUM(total_slot_ms), time_period) AS slotUsage,
-        DATETIME_TRUNC(creation_time,
-          SECOND) AS creationTime
+        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slotUsage,  -- Divide by 1 second (1000 ms) to convert to slots/second
+        period_start
       FROM
-        `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+        `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE
       WHERE
-        creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
-        AND CURRENT_TIMESTAMP()
-        AND total_slot_ms IS NOT NULL
+        period_start BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY) AND CURRENT_TIMESTAMP()
+        AND job_type <> 'SCRIPT'    -- Exclude scripts since they pull in child process slots and skew results
       GROUP BY
-        creationTime),
-  timeSeries AS(
+        period_start
+      ORDER BY
+        period_start DESC
+    ),
+    timeSeries AS(
     SELECT
       *
     FROM
@@ -34,7 +34,8 @@ BEGIN
         timeInterval
       FROM
         src RIGHT OUTER JOIN timeSeries
-          ON creationTime = timeInterval)
+          ON period_start = timeInterval
+  )
 
 SELECT
   *
