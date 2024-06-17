@@ -3,58 +3,44 @@
 -- Change this value to change how far in the past the query will search
 DECLARE interval_in_days INT64 DEFAULT 7;
 
+DECLARE time_period INT64 DEFAULT (1000);  -- Number of milliseconds in a second
+
 BEGIN
-WITH
-  src AS (
+    WITH src AS (
       SELECT
-        user_email AS user,
-        job_id AS jobId,
-        query,
-        DATETIME_TRUNC(start_time,
-          SECOND) AS startTime,
-        DATETIME_TRUNC(end_time,
-          SECOND) AS endTime,
-        SAFE_DIVIDE(total_slot_ms,
-          TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)) AS slotCount,
-        TIMESTAMP_DIFF(end_time, start_time, MINUTE) AS diff,
-        ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY end_time DESC) AS _rnk
+        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slotUsage,  -- Divide by 1 second (1000 ms) to convert to slots/second
+        period_start
       FROM
-        `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+        `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE
       WHERE
-        creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
-        AND CURRENT_TIMESTAMP()
-        AND total_slot_ms IS NOT NULL
-        AND job_type = 'QUERY'),
-  jobsDeduplicated AS (
+        period_start BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY) AND CURRENT_TIMESTAMP()
+        AND job_type = 'LOAD'
+      GROUP BY
+        period_start
+      ORDER BY
+        period_start DESC
+    ),
+    timeSeries AS(
+    SELECT
+      *
+    FROM
+      UNNEST(generate_timestamp_array(DATETIME_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY), SECOND),
+          DATETIME_TRUNC(CURRENT_TIMESTAMP(), SECOND),
+          INTERVAL 1 SECOND)) AS timeInterval
+  ),
+  joined AS (
       SELECT
-        * EXCEPT(_rnk)
+        COALESCE(src.slotUsage, 0) as slotUsage,
+        timeInterval
       FROM
-        src
-      WHERE
-        _rnk = 1 ),
-  differences AS (
-      SELECT
-        *,
-        generate_timestamp_array(startTime,
-          endTime,
-          INTERVAL 1 SECOND) AS int
-      FROM
-        jobsDeduplicated ),
-  bySeconds AS (
-      SELECT
-        * EXCEPT(int)
-      FROM
-        differences,
-        UNNEST(int) AS second )
+        src RIGHT OUTER JOIN timeSeries
+          ON period_start = timeInterval
+  )
 
 SELECT
-  slotCount,
-  user,
-  jobId,
-  query,
-  second
+  *
 FROM
-  bySeconds
+  joined
 ORDER BY
-  second ASC;
+  timeInterval ASC;
 END
