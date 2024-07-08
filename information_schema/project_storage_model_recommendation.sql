@@ -34,11 +34,14 @@ DECLARE active_physical_price_per_gb NUMERIC DEFAULT 0.044;
 DECLARE long_term_physical_price_per_gb NUMERIC DEFAULT 0.022;
 */
 
+-- Do not modify this line
+DECLARE query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'PHYSICAL')";
+
 WITH storage AS
 (
   SELECT DISTINCT
     tb.table_name,
-    tb.table_schema AS dataset,
+    CONCAT(tb.PROJECT_ID, '.', tb.table_schema) AS dataset,
     total_rows,
     total_partitions,
     
@@ -170,6 +173,10 @@ SELECT
     -- Recommendation
     IF(logical_storage_price < physical_storage_price,
       'Keep dataset on logical storage', 'Change dataset to physical storage') AS recommendation,
+    
+    -- Query to run
+    IF(logical_storage_price > physical_storage_price,
+      REPLACE(query_template, '<dataset>', dataset), NULL) AS physical_storage_query,
     
     -- If you wish to get the raw values that are not formatted uncomment the below line
     --final_data.* EXCEPT(dataset)
