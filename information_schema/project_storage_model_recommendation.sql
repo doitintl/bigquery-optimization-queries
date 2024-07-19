@@ -191,6 +191,13 @@ SELECT
     -- Saves or Costs More Money
 
     -- Current storage model
+    /*
+     *  Note this may be incorrect if you changed your billing model to physical prior to August 21, 2023.
+     *  The reason is that Google didn't backfill the billing model to customers that were early adopters of the
+     *  public version of physical storage.
+     *
+     *  Bugtracker to see this: https://issuetracker.google.com/issues/296794707
+    */
     current_storage_model,
 
     -- Recommendation for what to do
