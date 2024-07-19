@@ -1,23 +1,3 @@
-/*
- *  This query will look at a single project (by default in US multi-region) and
- *  calculate the logical and physical billing prices for each dataset inside of it
- *  then provide a recommendation on whether to keep it on logical storage
- *  or switch to the physical billing model.
- *
- *  Physical (also called compressed) Storage will be GA and released for public
- *  consumption on July 5, 2023.
- *
- *  It also includes inside of the storage CTE lots of extra values that can be used
- *  for other calculations that are being left in here to assist you as the customer
- *  make the best decision or to see additional information about your tables/datasets.
- *
- *  Note it targets the US multi-region by default. If needing to change the region
- *  then change `region-us` below to whichever region the data exists in. Also uncomment
- *  the DECLARE values below for the EU region or if you are using a non-multi-region
- *  then refer here: https://cloud.google.com/bigquery/pricing#storage
- *  for the correct pricing and update accordingly.
- */
-
 -- These values are for the US multi-region
 -- Comment these out and uncomment below if using the EU multi-region
 DECLARE active_logical_price_per_gb NUMERIC DEFAULT 0.02;
@@ -34,12 +14,14 @@ DECLARE active_physical_price_per_gb NUMERIC DEFAULT 0.044;
 DECLARE long_term_physical_price_per_gb NUMERIC DEFAULT 0.022;
 */
 
--- Do not modify this line
-DECLARE query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'PHYSICAL')";
+-- Do not modify these two lines
+DECLARE physical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'PHYSICAL')";
+DECLARE logical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'LOGICAL')";
 
 WITH storage AS
 (
   SELECT DISTINCT
+    tb.table_schema,
     tb.table_name,
     CONCAT(tb.PROJECT_ID, '.', tb.table_schema) AS dataset,
     total_rows,
@@ -91,21 +73,51 @@ WITH storage AS
     (time_travel_physical_bytes/POW(1024, 3))*active_physical_price_per_gb AS time_travel_compressed_price,
     (fail_safe_physical_bytes/POW(1024, 3))*active_physical_price_per_gb AS fail_safe_compressed_price
   FROM
-    `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLE_STORAGE AS tb
+    -- End user: Change to reflect your project and region
+    `<project_name>`.`<region>`.INFORMATION_SCHEMA.TABLE_STORAGE AS tb
 
     -- Need to join on TABLES for existing tables to remove any temporary or job result tables
     -- Note due to this information being in the TABLE_STORAGE view this means it cannot be
     -- performed across an entire organization without checking the TABLES view in each project.
-  JOIN `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLES AS t
+  -- End user: Change to reflect your project and region
+  JOIN `<project_name>`.`<region>`.INFORMATION_SCHEMA.TABLES AS t
     ON t.table_catalog = tb.project_id
       AND t.table_name = tb.table_name
   WHERE
     tb.deleted = false
 ),
+schemata_options AS
+(
+  /*
+  * Extract the storage billing model
+  * Note that if it's not listed then it's logical, or if it was converted before ~August 26, 2023
+  * then it might be physical, but Google did not backfill the schemata view showing the change.
+  */
+  SELECT
+    schema_name,
+    option_value
+  FROM
+    -- End user: Change to reflect your project and region
+    `<project_name>`.`<region>`.INFORMATION_SCHEMA.SCHEMATA_OPTIONS
+  WHERE
+    option_name = 'storage_billing_model'
+),
+storage_and_dataset_billing_type AS
+(
+  -- Gets project name and dataset name
+  SELECT
+    S.* EXCEPT(table_schema), -- Excluding table_schema to make grouping easier below and to remove redundant data
+    COALESCE(SO.option_value, 'LOGICAL') AS current_storage_model
+  FROM
+    storage AS S
+    LEFT OUTER JOIN schemata_options AS SO
+      ON S.table_schema = SO.schema_name
+),
 calculations AS
 (
   SELECT
     dataset,
+    current_storage_model,
     SUM(active_uncompressed_price) AS active_uncompressed_price,
     SUM(active_compressed_price) AS active_compressed_price,
     SUM(long_term_uncompressed_price) AS long_term_uncompressed_price,
@@ -113,9 +125,9 @@ calculations AS
     SUM(time_travel_compressed_price) AS time_travel_compressed_price,
     SUM(fail_safe_compressed_price) AS fail_safe_compressed_price
   FROM
-    storage
+    storage_and_dataset_billing_type
   GROUP BY
-    dataset
+    dataset, current_storage_model
 ),
 final_data AS
 (
@@ -141,6 +153,8 @@ final_data AS
       (time_travel_compressed_price+fail_safe_compressed_price)
     ) AS difference,
 
+    current_storage_model,
+
     active_uncompressed_price,
     active_compressed_price,
     long_term_uncompressed_price,
@@ -154,9 +168,12 @@ SELECT
 
     -- Logical prices and base (before adding in time travel and fail-safe reductions) physical price
     CONCAT('$ ',FORMAT("%'.2f", active_uncompressed_price)) AS logical_active_price,
-    CONCAT('$ ',FORMAT("%'.2f", active_compressed_price)) AS base_physical_price,
+    --CONCAT('$ ',FORMAT("%'.2f", active_compressed_price)) AS base_physical_price,
     CONCAT('$ ',FORMAT("%'.2f", long_term_uncompressed_price)) AS logical_long_term_price,
-    CONCAT('$ ',FORMAT("%'.2f", long_term_compressed_price)) AS base_long_term_price,
+    /* renamed both physical storage types to match the logical naming conventions and grouped them together */
+    CONCAT('$ ',FORMAT("%'.2f", active_compressed_price)) AS physical_active_price,
+    --CONCAT('$ ',FORMAT("%'.2f", long_term_compressed_price)) AS base_long_term_price,
+    CONCAT('$ ',FORMAT("%'.2f", long_term_compressed_price)) AS physical_long_term_price,
 
     -- Time travel and fail safe storage reductions
     CONCAT('$ ',FORMAT("%'.2f", additional_costs_for_physical_storage)) AS additional_costs_for_physical_storage,
@@ -168,15 +185,46 @@ SELECT
 
     -- Difference between logical storage and physical storage (logical - active)
     -- Note that a negative value means logica/uncompressed is cheaper
-    CONCAT('$ ',FORMAT("%'.2f", difference)) AS difference_in_price_if_physical_is_chosen,
+    --CONCAT('$ ',FORMAT("%'.2f", difference)) AS difference_in_price_if_physical_is_chosen,
+    CONCAT('$ ',FORMAT("%'.2f", difference)) AS savings_in_price_if_physical_is_chosen,
 
-    -- Recommendation
-    IF(logical_storage_price < physical_storage_price,
-      'Keep dataset on logical storage', 'Change dataset to physical storage') AS recommendation,
+    -- Saves or Costs More Money
+
+    -- Current storage model
+    current_storage_model,
+
+    -- Recommendation for what to do
+    /*
+     *  Writing this in SQL makes it look complex, but it's relatively easy.
+     *  If currrently on logical and physical storage is cheaper than recommend changing to physical storage. Otherwise recommend to not change.
+     *  If currrently on physical and logical storage is cheaper than recommend changing to back to logical storage. Otherwise recommend to not change.
+     */
+    CASE current_storage_model = 'LOGICAL'
+      WHEN logical_storage_price < physical_storage_price THEN
+        'Do nothing as logical storage is the best option (currently logical).'
+      WHEN logical_storage_price > physical_storage_price THEN
+        'Change dataset to physical storage for additional savings.'
+      ELSE
+        -- Is on physical storage currently
+        IF(logical_storage_price < physical_storage_price,
+          'Dataset is currently using physical storage and costing you more money than logical storage. Change dataset back to logical storage.',
+          'Do nothing as physical storage is the best option (currently physical).')
+    END AS recommendation,
     
     -- Query to run
-    IF(logical_storage_price > physical_storage_price,
-      REPLACE(query_template, '<dataset>', dataset), NULL) AS physical_storage_query,
+    /*
+     *  This looks complex again due to SQL, but uses same logic as above statement but emits SQL to make the change.
+     */
+    CASE current_storage_model = 'LOGICAL'
+      WHEN logical_storage_price > physical_storage_price THEN
+        REPLACE(physical_storage_query_template, '<dataset>', dataset)
+      WHEN logical_storage_price < physical_storage_price THEN
+        NULL
+      ELSE
+        -- If on physical storage currently and needs to change emit the correct query
+        IF(logical_storage_price < physical_storage_price,
+          REPLACE(logical_storage_query_template, '<dataset>', dataset), NULL)
+    END AS recommendation_change_SQL
     
     -- If you wish to get the raw values that are not formatted uncomment the below line
     --final_data.* EXCEPT(dataset)
