@@ -74,13 +74,13 @@ WITH storage AS
     (fail_safe_physical_bytes/POW(1024, 3))*active_physical_price_per_gb AS fail_safe_compressed_price
   FROM
     -- End user: Change to reflect your project and region
-    `<project_name>`.`<region>`.INFORMATION_SCHEMA.TABLE_STORAGE AS tb
+    `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLE_STORAGE AS tb
 
     -- Need to join on TABLES for existing tables to remove any temporary or job result tables
     -- Note due to this information being in the TABLE_STORAGE view this means it cannot be
     -- performed across an entire organization without checking the TABLES view in each project.
   -- End user: Change to reflect your project and region
-  JOIN `<project_name>`.`<region>`.INFORMATION_SCHEMA.TABLES AS t
+  JOIN `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLES AS t
     ON t.table_catalog = tb.project_id
       AND t.table_name = tb.table_name
   WHERE
@@ -98,7 +98,7 @@ schemata_options AS
     option_value
   FROM
     -- End user: Change to reflect your project and region
-    `<project_name>`.`<region>`.INFORMATION_SCHEMA.SCHEMATA_OPTIONS
+    `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.SCHEMATA_OPTIONS
   WHERE
     option_name = 'storage_billing_model'
 ),
@@ -202,36 +202,47 @@ SELECT
 
     -- Recommendation for what to do
     /*
-     *  Writing this in SQL makes it look complex, but it's relatively easy.
+     *  Writing this in SQL makes it more complex than it is, but it's relatively easy.
      *  If currrently on logical and physical storage is cheaper than recommend changing to physical storage. Otherwise recommend to not change.
      *  If currrently on physical and logical storage is cheaper than recommend changing to back to logical storage. Otherwise recommend to not change.
      */
-    CASE current_storage_model = 'LOGICAL'
-      WHEN logical_storage_price < physical_storage_price THEN
-        'Do nothing as logical storage is the best option (currently logical).'
-      WHEN logical_storage_price > physical_storage_price THEN
+    IF(
+      current_storage_model = 'LOGICAL',
+      -- Is on logical storage currently
+      IF(
+        logical_storage_price < physical_storage_price,
+        'Do nothing as logical storage is the best option (currently logical).',
         'Change dataset to physical storage for additional savings.'
-      ELSE
+      ),
         -- Is on physical storage currently
-        IF(logical_storage_price < physical_storage_price,
-          'Dataset is currently using physical storage and costing you more money than logical storage. Change dataset back to logical storage.',
-          'Do nothing as physical storage is the best option (currently physical).')
-    END AS recommendation,
+      IF(logical_storage_price < physical_storage_price,
+         'Dataset is currently using physical storage and costing you more money than logical storage. Change dataset back to logical storage.',
+         'Do nothing as physical storage is the best option (currently physical).')
+    ) AS recommendation,
     
     -- Query to run
     /*
      *  This looks complex again due to SQL, but uses same logic as above statement but emits SQL to make the change.
      */
-    CASE current_storage_model = 'LOGICAL'
-      WHEN logical_storage_price > physical_storage_price THEN
+    IF(
+      current_storage_model = 'LOGICAL',
+      -- Is on logical storage currently
+      IF(
+        logical_storage_price < physical_storage_price,
+        -- Do nothing
+        NULL,
+        -- Use the change to physical storage query
         REPLACE(physical_storage_query_template, '<dataset>', dataset)
-      WHEN logical_storage_price < physical_storage_price THEN
-        NULL
-      ELSE
-        -- If on physical storage currently and needs to change emit the correct query
-        IF(logical_storage_price < physical_storage_price,
-          REPLACE(logical_storage_query_template, '<dataset>', dataset), NULL)
-    END AS recommendation_change_SQL
+      ),
+      -- Is on physical storage currently
+      IF(
+        logical_storage_price < physical_storage_price,
+        -- Use the change to logical storage query
+         REPLACE(logical_storage_query_template, '<dataset>', dataset),
+         -- Do nothing
+         NULL
+        )
+    ) AS recommendation_change_SQL
     
     -- If you wish to get the raw values that are not formatted uncomment the below line
     --final_data.* EXCEPT(dataset)
