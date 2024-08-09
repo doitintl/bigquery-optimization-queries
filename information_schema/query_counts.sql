@@ -28,13 +28,10 @@ WITH
         _rnk = 1 ),
   hashedQueries AS (
     SELECT
-      src1.query AS query,
-      src1.hashed AS hashed
+      query,
+      hashed
     FROM
-      jobsDeduplicated AS src1,
-      jobsDeduplicated AS src2
-    WHERE
-      src1.hashed = src2.hashed ),
+      jobsDeduplicated ),
   pricedQueries AS (
     SELECT
       hashed,
