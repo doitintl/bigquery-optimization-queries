@@ -54,13 +54,14 @@ WITH
       *,
       SAFE_DIVIDE(billedBytes,
         POW(1024, 4)) * 6.25 AS onDemandCost,
-      billedDurationHour * 0.04 AS standardEditionCost,
-      billedDurationHour * 0.06 AS enterpriseEditionCost,
-      billedDurationHour * 0.048 AS enterpriseEdition1YearCost,
-      billedDurationHour * 0.036 AS enterpriseEdition3YearCost,
-      billedDurationHour * 0.1 AS enterprisePlusEditionCost,
-      billedDurationHour * 0.08 AS enterprisePlusEdition1YearCost,
-      billedDurationHour * 0.06 AS enterprisePlusEdition3YearCost
+      -- Multiply by roundedUpSlots to correctly calculate slot-hours cost
+      roundedUpSlots * billedDurationHour * 0.04 AS standardEditionCost,
+      roundedUpSlots * billedDurationHour * 0.06 AS enterpriseEditionCost,
+      roundedUpSlots * billedDurationHour * 0.048 AS enterpriseEdition1YearCost,
+      roundedUpSlots * billedDurationHour * 0.036 AS enterpriseEdition3YearCost,
+      roundedUpSlots * billedDurationHour * 0.1 AS enterprisePlusEditionCost,
+      roundedUpSlots * billedDurationHour * 0.08 AS enterprisePlusEdition1YearCost,
+      roundedUpSlots * billedDurationHour * 0.06 AS enterprisePlusEdition3YearCost
     FROM
       rounded
   )
