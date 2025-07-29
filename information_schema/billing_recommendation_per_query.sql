@@ -44,8 +44,8 @@ WITH
   rounded AS (
     SELECT
       *,
-      -- Rounds up to the nearest 100 slots
-      floor((CEIL(approximateSlotCount) + 99) / 100) * 100 AS roundedUpSlots,
+      -- Rounds up to the nearest 50 slots for the autoscaler
+      CEIL(approximateSlotCount / 50) * 50 AS roundedUpSlots,
       
       -- If query ran in under 1 minute (60 seconds * 1000 ms) then round up to 1 minute
       IF(executionTimeMs < 1000*60, 1000*60, executionTimeMs) AS billedDurationMs,
