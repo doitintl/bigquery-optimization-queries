@@ -15,6 +15,7 @@ DECLARE long_term_physical_price_per_gb NUMERIC DEFAULT 0.022;
 */
 
 -- Do not modify these two lines
+DECLARE location_query_template STRING DEFAULT "SET @@location = '<dataset-region>;\n";
 DECLARE physical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'PHYSICAL')";
 DECLARE logical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'LOGICAL')";
 
@@ -231,14 +232,21 @@ SELECT
         logical_storage_price < physical_storage_price,
         -- Do nothing
         NULL,
-        -- Use the change to physical storage query
-        REPLACE(physical_storage_query_template, '<dataset>', dataset)
+        CONCAT(
+          -- Add in the location
+          REPLACE(location_query_template, 'region-', ''),
+          -- Use the change to physical storage query
+          REPLACE(physical_storage_query_template, '<dataset>', dataset))
       ),
       -- Is on physical storage currently
       IF(
         logical_storage_price < physical_storage_price,
-        -- Use the change to logical storage query
-         REPLACE(logical_storage_query_template, '<dataset>', dataset),
+        CONCAT(
+          -- Add in the location
+          REPLACE(location_query_template, 'region-', ''),
+          -- Use the change to logical storage query
+          REPLACE(logical_storage_query_template, '<dataset>', dataset))
+        ,
          -- Do nothing
          NULL
         )
