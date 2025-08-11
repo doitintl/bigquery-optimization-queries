@@ -15,7 +15,7 @@ DECLARE long_term_physical_price_per_gb NUMERIC DEFAULT 0.022;
 */
 
 -- Do not modify these two lines
-DECLARE location_query_template STRING DEFAULT "SET @@location = '<dataset-region>;\n";
+DECLARE location_query_template STRING DEFAULT "SET @@location = '<dataset-region>';\n";
 DECLARE physical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'PHYSICAL')";
 DECLARE logical_storage_query_template STRING DEFAULT "ALTER SCHEMA `<dataset>` SET OPTIONS(storage_billing_model = 'LOGICAL')";
 
