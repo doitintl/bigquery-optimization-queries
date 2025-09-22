@@ -10,13 +10,19 @@
  *  The INFORMATION_SCHEMA.JOBS_TIMELINE_BY_ORGANIZATION view only retains data for 7 days, so you will only be able to go back that far in time.
  *  The jobs column is a repeated field (an array of structs) showing the jobs that were running during that second for that reservation.
  *
- *  Note this query doesn't include costs and only shows the jobs running to keep it simple and focused on jobs running during the periods.
- *  Costs can be added to slot_data by pulling lines from this other query:
- *  https://github.com/doitintl/bigquery-optimization-queries/blob/main/information_schema/autoscale_usage_and_costs_per_second.sql
+ *  Note: If not using the US or EU multi-regions, then the costs may be different.
+ *    Change the standard_edition_cost, enterprise_edition_cost, and enterprise_plus_edition_cost values below to match the actual cost listed here:
+ *    https://cloud.google.com/bigquery/pricing?hl=en#:~:text=size%20calculation.-,Capacity%20compute%20pricing,-BigQuery%20offers%20a
  */
 
 -- Modify this to go further back in time
 DECLARE interval_in_days INT64 DEFAULT 7;
+
+-- Modify these values if not using the US or EU multi-regions
+-- Values can be found here: https://cloud.google.com/bigquery/pricing?hl=en#:~:text=size%20calculation.-,Capacity%20compute%20pricing,-BigQuery%20offers%20a
+DECLARE standard_edition_cost NUMERIC DEFAULT 0.04;
+DECLARE enterprise_edition_cost NUMERIC DEFAULT 0.06;
+DECLARE enterprise_plus_edition_cost NUMERIC DEFAULT 0.10;
 
 WITH slot_data AS
 (
@@ -57,13 +63,21 @@ job_data AS
         STRUCT(
           period_slot_ms,
           period_slot_ms/1000 AS period_slot_s,
+          ((CASE edition
+            WHEN 'STANDARD' THEN standard_edition_cost
+            WHEN 'ENTERPRISE' THEN enterprise_edition_cost
+            WHEN 'ENTERPRISE PLUS' THEN enterprise_plus_edition_cost
+            END
+            )/3600) * (period_slot_ms/1000) AS editions_cost,
           project_id,
           user_email,
           job_id,
           statement_type,
           job_start_time,
           state,
-          total_bytes_billed
+          -- Note that the bytes billed reported are for the entire job, not just the portion that ran during this second
+          -- This is because the jobs can run across multiple seconds, and the view does not provide this for on-demand jobs
+          total_bytes_billed AS total_bytes_billed_for_full_job
         )
       ) AS jobs
     FROM
