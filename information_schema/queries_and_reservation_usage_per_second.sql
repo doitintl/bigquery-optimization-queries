@@ -6,6 +6,10 @@
  *  1. Modify the <project-name> and <dataset-region> placeholders below to match your required values. 
  *  2. Change the interval_in_days value to travel back further in time. By default this is 7 days.
  *
+ *  Important Notes:
+ *  The INFORMATION_SCHEMA.JOBS_TIMELINE_BY_ORGANIZATION view only retains data for 7 days, so you will only be able to go back that far in time.
+ *  The jobs column is a repeated field (an array of structs) showing the jobs that were running during that second for that reservation.
+ *
  *  Note this query doesn't include costs and only shows the jobs running to keep it simple and focused on jobs running during the periods.
  *  Costs can be added to slot_data by pulling lines from this other query:
  *  https://github.com/doitintl/bigquery-optimization-queries/blob/main/information_schema/autoscale_usage_and_costs_per_second.sql
