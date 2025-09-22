@@ -65,6 +65,8 @@ SELECT
   start_time,
   reservation_name,
   autoscale_current_slots,
+  autoscale_max_slots,
+  autoscale_current_slots / autoscale_max_slots AS autoscale_usage_ratio,
   autoscaled_cost,
   slots_assigned slots_assigned_cost,
   slots_max_assigned,
