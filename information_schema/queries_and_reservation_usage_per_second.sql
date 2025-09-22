@@ -7,6 +7,7 @@
  *  2. Change the interval_in_days value to travel back further in time. By default this is 7 days.
  *
  *  Important Notes:
+ *  This uses the INFORMATION_SCHEMA.TIMELINE_BY_ORGANIZATION vieW, which might need additional permissions or you might need to add specific reservations to the WHERE clause to filter out.
  *  The INFORMATION_SCHEMA.JOBS_TIMELINE_BY_ORGANIZATION view only retains data for 7 days, so you will only be able to go back that far in time.
  *  The jobs column is a repeated field (an array of structs) showing the jobs that were running during that second for that reservation.
  *
