@@ -8,6 +8,8 @@ BEGIN
       SELECT
         user_email AS user,
         job_type AS jobType,
+        reservation_id AS reservationId,
+        IF(reservation_id IS NULL, 'On-Demand', 'Editions') AS queryBillingType,
         query,
         job_id AS jobId,
         project_id AS projectId,
