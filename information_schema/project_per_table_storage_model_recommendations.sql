@@ -110,6 +110,7 @@ WITH storage AS
       AND t.table_name = tb.table_name
   WHERE
     tb.deleted = false
+    AND t.table_type = 'BASE TABLE'
 ),
 calculations AS
 (
