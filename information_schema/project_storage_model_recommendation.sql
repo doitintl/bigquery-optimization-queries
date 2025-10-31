@@ -86,6 +86,9 @@ WITH storage AS
       AND t.table_name = tb.table_name
   WHERE
     tb.deleted = false
+    -- Only look at the BASE TABLE type, as this is what Google uses in their billing data to
+    -- bill on even if there are clones, snapshots, etc.
+    AND t.table_type = 'BASE TABLE'
 ),
 schemata_options AS
 (
