@@ -16,7 +16,7 @@ BEGIN
         `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE
       WHERE
         period_start BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY) AND CURRENT_TIMESTAMP()
-        AND job_type <> 'SCRIPT'   -- Exclude scripts since they pull in child process slots and skew results
+        AND statement_type <> 'SCRIPT'   -- Exclude scripts since they pull in child process slots and skew results
       GROUP BY
         period_start,
         user_email
