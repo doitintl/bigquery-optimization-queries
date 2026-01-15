@@ -43,7 +43,7 @@ commitment_totals AS (
     SUM(slot_count) AS total_slots_in_edition,
     SUM(CASE 
       WHEN edition = 'ENTERPRISE' AND commitment_plan = 'ANNUAL' THEN slot_count * enterprise_1y_commit
-      WHEN edition = 'ENTERPRISE' AND commitment_plan = 'ANNUAL' THEN slot_count * enterprise_3y_commit
+      WHEN edition = 'ENTERPRISE' AND commitment_plan = 'THREE_YEAR' THEN slot_count * enterprise_3y_commit
       WHEN edition = 'ENTERPRISE_PLUS' AND commitment_plan = 'ANNUAL' THEN slot_count * enterprise_plus_1y_commit
       WHEN edition = 'ENTERPRISE_PLUS' AND commitment_plan = 'THREE_YEAR' THEN slot_count * enterprise_plus_3y_commit
       ELSE 0 
