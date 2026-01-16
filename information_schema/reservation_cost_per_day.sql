@@ -29,7 +29,7 @@ DECLARE enterprise_plus_payg FLOAT64 DEFAULT 0.10;
 DECLARE enterprise_plus_1y_commit   FLOAT64 DEFAULT 0.08;  
 DECLARE enterprise_plus_3y_commit   FLOAT64 DEFAULT 0.06;  
 
--- 3. MAIN QUERY
+-- Main Query
 WITH current_reservations AS (
   -- Get the current edition for each reservation
   SELECT reservation_name, edition
@@ -90,14 +90,14 @@ SELECT
   ROUND(u.autoscale_slot_hours, 2) AS total_autoscale_slot_hours,
   
   -- Apply the edition-specific rates
-  ROUND(u.baseline_slot_hours * p.blended_baseline_rate, 2) AS daily_baseline_cost_usd,
-  ROUND(u.autoscale_slot_hours * p.autoscale_list_rate, 2) AS daily_autoscale_cost_usd,
+  ROUND(u.baseline_slot_hours * p.blended_baseline_rate, 2) AS daily_baseline_cost,
+  ROUND(u.autoscale_slot_hours * p.autoscale_list_rate, 2) AS daily_autoscale_cost,
   ROUND(
     (u.baseline_slot_hours * p.blended_baseline_rate) + 
     (u.autoscale_slot_hours * p.autoscale_list_rate), 2
-  ) AS total_daily_reservation_cost_usd
+  ) AS total_daily_reservation_cost
 
 FROM daily_usage u
 JOIN current_reservations r ON u.reservation_name = r.reservation_name
 LEFT JOIN pricing_map p ON r.edition = p.edition
-ORDER BY usage_date DESC, total_daily_reservation_cost_usd DESC;
+ORDER BY usage_date DESC, total_daily_reservation_cost DESC;
