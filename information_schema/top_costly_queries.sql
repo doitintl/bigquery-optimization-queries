@@ -30,15 +30,12 @@ BEGIN
     ),
     hashedQueries AS (
         SELECT
-          src1.query AS query,
-          src1.hashed AS hashed,
-          SUM(src1.totalBytesBilled) AS totalBytesBilled,
-          COUNT(src1.hashed) AS queryCount
+          query,
+          hashed,
+          SUM(totalBytesBilled) AS totalBytesBilled,
+          COUNT(*) AS queryCount
         FROM
-          jobsDeduplicated AS src1, jobsDeduplicated AS src2
-        WHERE
-          src1.hashed = src2.hashed AND
-          src1.jobId <> src2.jobId
+          jobsDeduplicated
         GROUP BY
           hashed, query
     )
