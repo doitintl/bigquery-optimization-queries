@@ -52,8 +52,9 @@ WITH tables AS (
         AND j.state = 'DONE'
 
         -- Filter on the given range
-        AND creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
-          AND CURRENT_TIMESTAMP()
+        AND creation_time BETWEEN 
+            TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+            AND CURRENT_TIMESTAMP()
     GROUP BY 1, 2, 3
 ),
 table_billing_type AS (

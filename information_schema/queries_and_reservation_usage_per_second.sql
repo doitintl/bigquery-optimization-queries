@@ -90,8 +90,9 @@ job_data AS
       -- This might cause some jobs to be lost if they started before the boundary, but otherwise
       -- this query might process too much data for many users.
       -- Note this is job_creation_time, not creation_time as the docs say
-      AND job_creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
-        AND CURRENT_TIMESTAMP()
+      AND job_creation_time BETWEEN 
+          TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+          AND CURRENT_TIMESTAMP()
       -- Note that this only pulls queries and excludes SCRIPT job types
       -- Change this if needed for other job types
       AND job_type = 'QUERY'

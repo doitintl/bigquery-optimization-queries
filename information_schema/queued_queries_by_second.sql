@@ -21,7 +21,8 @@ with base_data as
   from
      `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
   where
-  job_creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
+  job_creation_time BETWEEN 
+      TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
       AND CURRENT_TIMESTAMP()
   AND state = 'PENDING'
 )

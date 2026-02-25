@@ -31,8 +31,9 @@ BEGIN
       FROM
         `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
       WHERE
-        creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)
-        AND CURRENT_TIMESTAMP()
+        creation_time BETWEEN 
+            TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+            AND CURRENT_TIMESTAMP()
         AND job_type = "QUERY"
         AND total_slot_ms IS NOT NULL
         AND state = "DONE" ),
