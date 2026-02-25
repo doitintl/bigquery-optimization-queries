@@ -9,42 +9,47 @@ DECLARE time_period INT64 DEFAULT (1000 * 60);  -- Number of milliseconds in a m
 BEGIN
     WITH src AS (
       SELECT
-        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slot_usage,  -- Divide by 1 minute (1000 ms * 60 seconds) to convert to slots/minute
+        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slot_usage,
         user_email,
-        TIMESTAMP_TRUNC(period_start, MINUTE) as period_start
+        -- Truncate the period_start to the minute in PST
+        TIMESTAMP_TRUNC(period_start, MINUTE, 'America/Los_Angeles') as period_start_pst
       FROM
         `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE
       WHERE
-        period_start BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY) AND CURRENT_TIMESTAMP()
+        -- Filter using PST boundaries
+        period_start BETWEEN 
+            TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+            AND CURRENT_TIMESTAMP()
         AND job_type = 'QUERY'
       GROUP BY
-        period_start,
+        period_start_pst,
         user_email
-      ORDER BY
-        period_start DESC
     ),
-    time_series AS(
-    SELECT
-      *
-    FROM
-      UNNEST(generate_timestamp_array(DATETIME_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY), MINUTE),
-          DATETIME_TRUNC(CURRENT_TIMESTAMP(), MINUTE),
+    time_series AS (
+      SELECT
+        timeInterval
+      FROM
+        UNNEST(GENERATE_TIMESTAMP_ARRAY(
+          TIMESTAMP_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY), MINUTE, 'America/Los_Angeles'),
+          TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MINUTE, 'America/Los_Angeles'),
           INTERVAL 1 MINUTE)) AS timeInterval
-  ),
+    ),
   joined AS (
       SELECT
         COALESCE(src.slot_usage, 0) as slot_usage,
-        user_email,
-        timeInterval
+        src.user_email,
+        -- Convert the final output to a DATETIME string for easier PST reading
+        DATETIME(timeInterval, 'America/Los_Angeles') AS timeInterval_PST
       FROM
-        src RIGHT OUTER JOIN time_series
-          ON period_start = timeInterval
-  )
+        time_series
+      LEFT OUTER JOIN src 
+        ON time_series.timeInterval = src.period_start_pst
+    )
 
 SELECT
   *
 FROM
   joined
 ORDER BY
-  timeInterval ASC;
+  timeInterval_PST ASC;
 END

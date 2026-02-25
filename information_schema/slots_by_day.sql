@@ -3,44 +3,49 @@
 -- Change this value to change how far in the past the query will search
 DECLARE interval_in_days INT64 DEFAULT 7;
 
-DECLARE time_period INT64 DEFAULT (1000*60*60*24);  -- Number of milliseconds in a hour
+DECLARE time_period INT64 DEFAULT (1000*60*60*24); -- Number of milliseconds in a day
 
 BEGIN
     WITH src AS (
       SELECT
-        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slot_usage,  -- Divide by 1 minute (1000 ms * 60 seconds) to convert to slots/minute
-        TIMESTAMP_TRUNC(period_start, MINUTE) as period_start
+        SAFE_DIVIDE(SUM(period_slot_ms), time_period) AS slot_usage,
+        -- Truncate the period_start to the day in PST
+        TIMESTAMP_TRUNC(period_start, DAY, 'America/Los_Angeles') as period_start_pst
       FROM
         `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_TIMELINE
       WHERE
-        period_start BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY) AND CURRENT_TIMESTAMP()
+        -- Filter using PST boundaries
+        period_start BETWEEN 
+            TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+            AND CURRENT_TIMESTAMP()
         AND statement_type <> 'SCRIPT'   -- Exclude scripts since they pull in child process slots and skew results
       GROUP BY
-        period_start
-      ORDER BY
-        period_start DESC
+        period_start_pst
     ),
-    time_series AS(
-    SELECT
-      *
-    FROM
-      UNNEST(generate_timestamp_array(DATETIME_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY), DAY),
-          DATETIME_TRUNC(CURRENT_TIMESTAMP(), DAY),
-          INTERVAL 1 DAY)) AS timeInterval
-  ),
-  joined AS (
+    time_series AS (
       SELECT
-        COALESCE(src.slot_usage, 0) as slot_usage,
         timeInterval
       FROM
-        src RIGHT OUTER JOIN time_series
-          ON period_start = timeInterval
-  )
+        UNNEST(GENERATE_TIMESTAMP_ARRAY(
+          TIMESTAMP_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY), DAY, 'America/Los_Angeles'),
+          TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), DAY, 'America/Los_Angeles'),
+          INTERVAL 1 DAY)) AS timeInterval
+    ),
+    joined AS (
+      SELECT
+        COALESCE(src.slot_usage, 0) as slot_usage,
+        -- Convert the final output to a DATETIME string for easier PST reading
+        DATETIME(timeInterval, 'America/Los_Angeles') AS timeInterval_PST
+      FROM
+        time_series
+      LEFT OUTER JOIN src 
+        ON time_series.timeInterval = src.period_start_pst
+    )
 
 SELECT
   *
 FROM
   joined
 ORDER BY
-  timeInterval ASC;
+  timeInterval_PST ASC;
 END
