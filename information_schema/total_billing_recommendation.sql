@@ -3,123 +3,127 @@
 
 -- Change this value to change how far in the past the query will search
 DECLARE interval_in_days INT64 DEFAULT 30;
+DECLARE baselines_to_test ARRAY<INT64> DEFAULT [0, 50, 100, 200, 500, 1000];
 
 BEGIN
 WITH
-  src AS (
-  SELECT
-    ROUND(SAFE_DIVIDE(total_slot_ms,
-        TIMESTAMP_DIFF(end_time, start_time, MILLISECOND)), 2) AS approximateSlotCount,
-    job_type,
-    query,
-    project_id AS projectId,
-    start_time AS startTime,
-    end_time AS endTime,
-    ROUND(COALESCE(total_bytes_billed,
-        0), 2) AS totalBytesBilled,
-    ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 2), 2) AS totalMegabytesBilled,
-    ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 3), 2) AS totalGigabytesBilled,
-    ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 4), 2) AS totalTerabytesBilled,
-    TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs
-  FROM
-     `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
-  WHERE
-    creation_time BETWEEN 
-        TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
+  -- Per-minute concurrent slot demand across all queries
+  per_minute AS (
+    SELECT
+      period_start,
+      SUM(period_slot_ms) / 60000.0 AS concurrent_slots
+    FROM `<project>`.`region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
+    WHERE period_start BETWEEN
+        TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'),
+                               INTERVAL interval_in_days DAY),
+                  'America/Los_Angeles')
+        AND CURRENT_TIMESTAMP()
+      AND job_type = 'QUERY'
+    GROUP BY period_start
+  ),
+
+  -- Apply autoscale 50-slot rounding at the reservation level (per minute)
+  provisioned AS (
+    SELECT
+      period_start,
+      concurrent_slots,
+      CEIL(concurrent_slots / 50.0) * 50 AS provisioned_slots_no_baseline
+    FROM per_minute
+  ),
+
+  -- On-demand cost (TB scanned × $6.25) — unchanged from original
+  on_demand AS (
+    SELECT
+      COUNT(*) AS total_query_executions,
+      COUNT(DISTINCT query) AS total_unique_queries,
+      ROUND(SUM(GREATEST(total_bytes_billed, 10*POW(1024,2)))/POW(1024,4), 2)
+        AS total_terabytes_billed,
+      ROUND(SUM(GREATEST(total_bytes_billed, 10*POW(1024,2)))/POW(1024,4) * 6.25, 2)
+        AS total_on_demand_cost
+    FROM `<project>`.`region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+    WHERE creation_time BETWEEN
+        TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'),
+                               INTERVAL interval_in_days DAY),
+                  'America/Los_Angeles')
         AND CURRENT_TIMESTAMP()
   ),
-  rounded AS (
-    SELECT
-      *,
-      -- Rounds up to the nearest 50 slots (autoscaler increments)
-      floor((CEIL(approximateSlotCount) + 49) / 50) * 50 AS roundedUpSlots,
-      
-      -- If query ran in under 1 minute (60 seconds * 1000 ms) then round up to 1 minute
-      IF(executionTimeMs < 1000*60, 1000*60, executionTimeMs) AS billedDurationMs,
-      -- Calculates the duration in hours for calculating slot/hours used
-      -- Formula: (Execution Time in ms)/(1000 ms * 60 seconds * 60 minutes)
-      IF(executionTimeMs < 1000*60, 1000*60, executionTimeMs)/(1000*60*60) AS billedDurationHour,
-      
-      -- Apply minimum 10 MiB billing per query
-      GREATEST(totalBytesBilled, 10 * POW(1024, 2)) AS billedBytes,
-      GREATEST(totalMegabytesBilled, 10) AS billedMegabytes,
-      GREATEST(totalGigabytesBilled, 10/1024) AS billedGigabytes,
-      GREATEST(totalTerabytesBilled, 10/POW(1024, 2)) AS billedTerabytes
-    FROM src
+
+  calendar AS (
+    SELECT interval_in_days * 24 * 60 AS total_calendar_minutes
   ),
-  costs AS (
+
+  -- For each candidate baseline, model: baseline_cost + overflow_cost
+  scenarios AS (
     SELECT
-      *,
-      SAFE_DIVIDE(billedBytes,
-        POW(1024, 4)) * 6.25 AS onDemandCost,
-      -- Multiply by roundedUpSlots to correctly calculate slot-hours cost
-      roundedUpSlots * billedDurationHour * 0.04 AS standardEditionCost,
-      roundedUpSlots * billedDurationHour * 0.06 AS enterpriseEditionCost,
-      roundedUpSlots * billedDurationHour * 0.048 AS enterpriseEdition1YearCost,
-      roundedUpSlots * billedDurationHour * 0.036 AS enterpriseEdition3YearCost,
-      roundedUpSlots * billedDurationHour * 0.1 AS enterprisePlusEditionCost,
-      roundedUpSlots * billedDurationHour * 0.08 AS enterprisePlusEdition1YearCost,
-      roundedUpSlots * billedDurationHour * 0.06 AS enterprisePlusEdition3YearCost
-    FROM
-      rounded
+      bs AS baseline_slots,
+      -- Slot-minutes provisioned BEYOND the committed baseline
+      (SELECT SUM(GREATEST(
+                    0,
+                    GREATEST(provisioned_slots_no_baseline, bs) - bs))
+       FROM provisioned) AS autoscale_slot_minutes,
+      cal.total_calendar_minutes AS calendar_minutes
+    FROM UNNEST(baselines_to_test) bs, calendar cal
+  ),
+
+  costed AS (
+    SELECT
+      s.baseline_slots,
+      -- Standard: $0.04 PAYG, no committed-rate tiers exist on Standard
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.04
+        + s.autoscale_slot_minutes / 60 * 0.04, 2)
+        AS standard_total_cost,
+      -- Enterprise: PAYG ($0.06), 1-yr ($0.048), 3-yr ($0.036) on baseline only.
+      -- Autoscale always at $0.06 PAYG.
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.06
+        + s.autoscale_slot_minutes / 60 * 0.06, 2)
+        AS enterprise_payg_cost,
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.048
+        + s.autoscale_slot_minutes / 60 * 0.06, 2)
+        AS enterprise_1yr_cost,
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.036
+        + s.autoscale_slot_minutes / 60 * 0.06, 2)
+        AS enterprise_3yr_cost,
+      -- Enterprise Plus: PAYG ($0.10), 1-yr ($0.08), 3-yr ($0.06) on baseline only.
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.10
+        + s.autoscale_slot_minutes / 60 * 0.10, 2)
+        AS enterprise_plus_payg_cost,
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.08
+        + s.autoscale_slot_minutes / 60 * 0.10, 2)
+        AS enterprise_plus_1yr_cost,
+      ROUND(
+        s.baseline_slots * s.calendar_minutes / 60 * 0.06
+        + s.autoscale_slot_minutes / 60 * 0.10, 2)
+        AS enterprise_plus_3yr_cost
+    FROM scenarios s
   )
 
--- Aggregate costs across all queries
 SELECT
-  -- Time period information
-  CONCAT('Last ', interval_in_days, ' days (', 
-         FORMAT_TIMESTAMP('%Y-%m-%d', TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL interval_in_days DAY)),
-         ' to ',
-         FORMAT_TIMESTAMP('%Y-%m-%d', CURRENT_TIMESTAMP()),
-         ')') AS time_period,
-  
-  -- Query count
-  COUNT(DISTINCT query) AS total_unique_queries,
-  COUNT(*) AS total_query_executions,
-  
-  -- Total bytes processed
-  SUM(billedBytes) AS total_bytes_billed,
-  ROUND(SUM(billedBytes) / POW(1024, 4), 2) AS total_terabytes_billed,
-  
-  -- Total slot hours
-  SUM(billedDurationHour) AS total_billed_slot_hours,
-  
-  -- Aggregated costs
-  ROUND(SUM(onDemandCost), 2) AS total_on_demand_cost,
-  ROUND(SUM(standardEditionCost), 2) AS total_standard_edition_cost,
-  ROUND(SUM(enterpriseEditionCost), 2) AS total_enterprise_edition_cost,
-  ROUND(SUM(enterpriseEdition1YearCost), 2) AS total_enterprise_1year_cost,
-  ROUND(SUM(enterpriseEdition3YearCost), 2) AS total_enterprise_3year_cost,
-  ROUND(SUM(enterprisePlusEditionCost), 2) AS total_enterprise_plus_cost,
-  ROUND(SUM(enterprisePlusEdition1YearCost), 2) AS total_enterprise_plus_1year_cost,
-  ROUND(SUM(enterprisePlusEdition3YearCost), 2) AS total_enterprise_plus_3year_cost,
-  
-  -- Cost comparisons (positive means on-demand is more expensive)
-  ROUND(SUM(onDemandCost) - SUM(standardEditionCost), 2) AS on_demand_vs_standard_diff,
-  ROUND(SUM(onDemandCost) - SUM(enterpriseEditionCost), 2) AS on_demand_vs_enterprise_diff,
-  ROUND(SUM(onDemandCost) - SUM(enterpriseEdition1YearCost), 2) AS on_demand_vs_enterprise_1year_diff,
-  ROUND(SUM(onDemandCost) - SUM(enterpriseEdition3YearCost), 2) AS on_demand_vs_enterprise_3year_diff,
-  
-  -- Cost savings percentages
-  ROUND(100 * (SUM(onDemandCost) - SUM(standardEditionCost)) / NULLIF(SUM(onDemandCost), 0), 2) AS standard_edition_savings_pct,
-  ROUND(100 * (SUM(onDemandCost) - SUM(enterpriseEditionCost)) / NULLIF(SUM(onDemandCost), 0), 2) AS enterprise_edition_savings_pct,
-  ROUND(100 * (SUM(onDemandCost) - SUM(enterpriseEdition1YearCost)) / NULLIF(SUM(onDemandCost), 0), 2) AS enterprise_1year_savings_pct,
-  ROUND(100 * (SUM(onDemandCost) - SUM(enterpriseEdition3YearCost)) / NULLIF(SUM(onDemandCost), 0), 2) AS enterprise_3year_savings_pct,
-  
-  -- Overall recommendation
-  CASE
-    WHEN SUM(onDemandCost) < SUM(standardEditionCost) THEN 'On-demand pricing recommended'
-    WHEN SUM(enterpriseEdition3YearCost) < SUM(standardEditionCost) AND 
-         SUM(enterpriseEdition3YearCost) < SUM(enterpriseEdition1YearCost) AND
-         SUM(enterpriseEdition3YearCost) < SUM(enterpriseEditionCost) THEN 'Enterprise Edition with 3-year commitment recommended'
-    WHEN SUM(enterpriseEdition1YearCost) < SUM(standardEditionCost) AND
-         SUM(enterpriseEdition1YearCost) < SUM(enterpriseEditionCost) THEN 'Enterprise Edition with 1-year commitment recommended'
-    WHEN SUM(enterpriseEditionCost) < SUM(standardEditionCost) THEN 'Enterprise Edition recommended'
-    ELSE 'Standard Edition recommended'
-  END AS overall_recommendation
-FROM
-  costs;
+  CONCAT('Last ', interval_in_days, ' days') AS time_period,
+  od.total_unique_queries,
+  od.total_query_executions,
+  od.total_terabytes_billed,
+  od.total_on_demand_cost,
+  c.baseline_slots,
+  c.standard_total_cost,
+  c.enterprise_payg_cost,
+  c.enterprise_1yr_cost,
+  c.enterprise_3yr_cost,
+  c.enterprise_plus_payg_cost,
+  c.enterprise_plus_1yr_cost,
+  c.enterprise_plus_3yr_cost,
+  -- Savings vs on-demand on the cheapest Enterprise commitment
+  ROUND(od.total_on_demand_cost - c.enterprise_3yr_cost, 2)
+    AS savings_vs_ondemand_at_3yr,
+  ROUND(100 *
+    (od.total_on_demand_cost - c.enterprise_3yr_cost)
+    / NULLIF(od.total_on_demand_cost, 0), 2)
+    AS savings_pct_at_3yr
+FROM costed c, on_demand od
+ORDER BY c.baseline_slots;
 END
