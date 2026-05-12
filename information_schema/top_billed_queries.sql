@@ -33,6 +33,7 @@ BEGIN
             TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
             AND CURRENT_TIMESTAMP()
         AND job_type = "QUERY"
+        AND statement_type = "SELECT"
         AND total_slot_ms IS NOT NULL
         AND state = "DONE" ),
     jobsDeduplicated AS (
