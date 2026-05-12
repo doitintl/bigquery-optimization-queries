@@ -18,7 +18,7 @@ BEGIN
         creation_time BETWEEN 
             TIMESTAMP(DATETIME_SUB(CURRENT_DATETIME('America/Los_Angeles'), INTERVAL interval_in_days DAY), 'America/Los_Angeles') 
             AND CURRENT_TIMESTAMP()
-        AND job_type = "QUERY"
+        AND statement_Type = "SELECT"
         AND total_slot_ms IS NOT NULL
         AND state = "DONE" ),
     jobsDeduplicated AS (
@@ -50,11 +50,11 @@ SELECT
   ROUND(COALESCE(totalBytesBilled,
     0), 2) AS totalBytesBilled,
   ROUND(COALESCE(totalBytesBilled,
-    0) / POW(1024, 2), 2) AS totalMegabytesBilled,
+    0) / POW(1024, 2), 2) AS totalMebibytesBilled,
   ROUND(COALESCE(totalBytesBilled,
-    0) / POW(1024, 3), 2) AS totalGigabytesBilled,
+    0) / POW(1024, 3), 2) AS totalGigibytesBilled,
   ROUND(COALESCE(totalBytesBilled,
-    0) / POW(1024, 4), 2) AS totalTerabytesBilled,
+    0) / POW(1024, 4), 2) AS totalTebibytesBilled,
   ROUND(SAFE_DIVIDE(totalBytesBilled,
         POW(1024, 4)) * 6.25, 2) AS onDemandCost
 FROM
