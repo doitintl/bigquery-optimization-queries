@@ -24,7 +24,7 @@ the top of explaining what the query does.
 Some of these queries can process through a LOT of data so it's HIGHLY recommended to
 verify the estimated cost of each query before running it. Depending upon how much
 usage your dataset sees over the specified timeframe then this could easily be upwards
-of tens of gigabytes if not more per query.
+of tens of gigibytes if not more per query.
 
 Blindly run these queries at your own risk! It's very much recommended to reduce the
 interval_in_days value when the query will be processing a very large amount of data.

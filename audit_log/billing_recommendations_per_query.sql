@@ -25,11 +25,11 @@ WITH src AS (
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
         0), 2) AS totalBytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-            0) / POW(1024, 2), 2) AS totalMegabytesBilled,
+            0) / POW(1024, 2), 2) AS totalMebibytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-            0) / POW(1024, 3), 2) AS totalGigabytesBilled,
+            0) / POW(1024, 3), 2) AS totalGigibytesBilled,
         ROUND(COALESCE(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes,
-            0) / POW(1024, 4), 2) AS totalTerabytesBilled,
+            0) / POW(1024, 4), 2) AS totalTebibytesBilled,
         TIMESTAMP_DIFF(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.endTime,
                         protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
                         MILLISECOND) AS executionTimeMs,
@@ -62,9 +62,9 @@ recommendations AS (
     startTime,
     endTime,
     totalBytesBilled,
-    totalMegabytesBilled,
-    totalGigabytesBilled,
-    totalTerabytesBilled,
+    totalMebibytesBilled,
+    totalGigibytesBilled,
+    totalTebibytesBilled,
     approximateSlotCount,
     onDemandCost,
     -- On-Demand recommendation score
@@ -92,9 +92,9 @@ SELECT
   approximateSlotCount,
   onDemandCost,
   totalBytesBilled,
-  totalMegabytesBilled,
-  totalGigabytesBilled,
-  totalTerabytesBilled
+  totalMebibytesBilled,
+  totalGigibytesBilled,
+  totalTebibytesBilled
 FROM
   recommendations
 ORDER BY

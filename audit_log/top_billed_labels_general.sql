@@ -36,11 +36,11 @@ labels AS (
     SELECT
         SUM(COALESCE(totalBilledBytes, 0)) AS totalBilledBytes,
         ROUND(SUM(COALESCE(totalBilledBytes,
-              0)) / POW(1024, 2), 2) AS totalMegabytesBilled,
+              0)) / POW(1024, 2), 2) AS totalMebibytesBilled,
         ROUND(SUM(COALESCE(totalBilledBytes,
-              0)) / POW(1024, 3), 2) AS totalGigabytesBilled,
+              0)) / POW(1024, 3), 2) AS totalGigibytesBilled,
         ROUND(SUM(COALESCE(totalBilledBytes,
-              0)) / POW(1024, 4), 2) AS totalTerabytesBilled,
+              0)) / POW(1024, 4), 2) AS totalTebibytesBilled,
         ROUND(SAFE_DIVIDE(SUM(COALESCE(totalBilledBytes, 0)),
           POW(1024, 4)) * 5, 2) AS onDemandCost,
         labels.key AS labelKey,
@@ -60,8 +60,8 @@ SELECT
       labelKey,
       labelValue,
       totalBilledBytes,
-      totalMegabytesBilled,
-      totalTerabytesBilled,
+      totalMebibytesBilled,
+      totalTebibytesBilled,
       onDemandCost
     FROM
       labels

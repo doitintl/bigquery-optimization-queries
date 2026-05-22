@@ -64,9 +64,9 @@ SELECT
   endTime,
   ROUND(SAFE_DIVIDE(totalBytesBilled, POW(1024, 4)) * 5, 2) AS onDemandCost,
   ROUND(COALESCE(totalBytesBilled, 0), 2) AS totalBytesBilled,
-  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 2), 2) AS totalMegabytesBilled,
-  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 3), 2) AS totalGigabytesBilled,
-  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 4), 2) AS totalTerabytesBilled,
+  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 2), 2) AS totalMebibytesBilled,
+  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 3), 2) AS totalGigibytesBilled,
+  ROUND(COALESCE(totalBytesBilled, 0) / POW(1024, 4), 2) AS totalTebibytesBilled,
   approximateSlotCount
 FROM
   queriesDeduplicated;

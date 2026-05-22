@@ -18,11 +18,11 @@ WITH
     ROUND(COALESCE(total_bytes_billed,
         0), 2) AS totalBytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 2), 2) AS totalMegabytesBilled,
+        0) / POW(1024, 2), 2) AS totalMebibytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 3), 2) AS totalGigabytesBilled,
+        0) / POW(1024, 3), 2) AS totalGigibytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 4), 2) AS totalTerabytesBilled,
+        0) / POW(1024, 4), 2) AS totalTebibytesBilled,
     TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs
   FROM
      `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
@@ -49,9 +49,9 @@ WITH
       
       -- Apply minimum 10 MiB billing per query
       GREATEST(totalBytesBilled, 10 * POW(1024, 2)) AS billedBytes,
-      GREATEST(totalMegabytesBilled, 10) AS billedMegabytes,
-      GREATEST(totalGigabytesBilled, 10/1024) AS billedGigabytes,
-      GREATEST(totalTerabytesBilled, 10/POW(1024, 2)) AS billedTerabytes
+      GREATEST(totalMebibytesBilled, 10) AS billedMebibytes,
+      GREATEST(totalGigibytesBilled, 10/1024) AS billedGigibytes,
+      GREATEST(totalTebibytesBilled, 10/POW(1024, 2)) AS billedTebibytes
     FROM src
   ),
   queryCounts AS (
@@ -71,9 +71,9 @@ WITH
     endTime,
     billedDurationHour,
     billedBytes,
-    billedMegabytes,
-    billedGigabytes,
-    billedTerabytes,
+    billedMebibytes,
+    billedGigibytes,
+    billedTebibytes,
     approximateSlotCount,
     roundedUpSlots,
     -- Calculate slot-hours for this query
@@ -102,9 +102,9 @@ SELECT
   onDemandCost,
   queryCount AS executionCount,
   billedBytes,
-  billedMegabytes,
-  billedGigabytes,
-  billedTerabytes
+  billedMebibytes,
+  billedGigibytes,
+  billedTebibytes
 FROM
   queryMetrics
 ORDER BY

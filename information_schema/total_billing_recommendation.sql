@@ -37,7 +37,7 @@ WITH
       COUNT(*) AS total_query_executions,
       COUNT(DISTINCT query) AS total_unique_queries,
       ROUND(SUM(GREATEST(total_bytes_billed, 10*POW(1024,2)))/POW(1024,4), 2)
-        AS total_terabytes_billed,
+        AS total_Tebibytes_billed,
       ROUND(SUM(GREATEST(total_bytes_billed, 10*POW(1024,2)))/POW(1024,4) * 6.25, 2)
         AS total_on_demand_cost
     FROM `<project>`.`region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
@@ -107,7 +107,7 @@ SELECT
   CONCAT('Last ', interval_in_days, ' days') AS time_period,
   od.total_unique_queries,
   od.total_query_executions,
-  od.total_terabytes_billed,
+  od.total_Tebibytes_billed,
   od.total_on_demand_cost,
   c.baseline_slots,
   c.standard_total_cost,

@@ -26,11 +26,11 @@ WITH
     ROUND(COALESCE(total_bytes_billed,
         0), 2) AS totalBytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 2), 2) AS totalMegabytesBilled,
+        0) / POW(1024, 2), 2) AS totalMebibytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 3), 2) AS totalGigabytesBilled,
+        0) / POW(1024, 3), 2) AS totalGigibytesBilled,
     ROUND(COALESCE(total_bytes_billed,
-        0) / POW(1024, 4), 2) AS totalTerabytesBilled,
+        0) / POW(1024, 4), 2) AS totalTebibytesBilled,
     TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS executionTimeMs
   FROM
      `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
@@ -90,9 +90,9 @@ WITH
     billedDurationHour AS editionsBilledDurationInHours,
 
     totalBytesBilled,
-    totalMegabytesBilled,
-    totalGigabytesBilled,
-    totalTerabytesBilled,
+    totalMebibytesBilled,
+    totalGigibytesBilled,
+    totalTebibytesBilled,
     approximateSlotCount,
     roundedUpSlots AS billedSlotCount,
 
@@ -152,9 +152,9 @@ SELECT
   enterprisePlusEdition3YearCost,
 
   totalBytesBilled,
-  totalMegabytesBilled,
-  totalGigabytesBilled,
-  totalTerabytesBilled
+  totalMebibytesBilled,
+  totalGigibytesBilled,
+  totalTebibytesBilled
 FROM
   recommendations
 ORDER BY
