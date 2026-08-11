@@ -80,15 +80,22 @@ WITH storage AS
     -- Need to join on TABLES for existing tables to remove any temporary or job result tables
     -- Note due to this information being in the TABLE_STORAGE view this means it cannot be
     -- performed across an entire organization without checking the TABLES view in each project.
+    -- This does a left join to so that any deleted tables contained in time-travel or fail-safe
+    -- storage are still included in the results and can be used as part of the calculations for the total storage costs.
   -- End user: Change to reflect your project and region
-  JOIN `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLES AS t
+  LEFT JOIN `<project-name>`.`<dataset-region>`.INFORMATION_SCHEMA.TABLES AS t
     ON t.table_catalog = tb.project_id
       AND t.table_name = tb.table_name
   WHERE
-    tb.deleted = false
-    -- Only look at the BASE TABLE type, as this is what Google uses in their billing data to
-    -- bill on even if there are clones, snapshots, etc.
-    AND t.table_type = 'BASE TABLE'
+    (
+      tb.deleted = false
+      -- Only look at the BASE TABLE type, as this is what Google uses in their billing data to
+      -- bill on even if there are clones, snapshots, etc.
+      AND t.table_type = 'BASE TABLE'
+    )
+    OR 
+    -- This grabs deleted tables that are still in time-travel or fail-safe storage, as they are still being billed for.
+    (tb.deleted = true)
 ),
 schemata_options AS
 (
