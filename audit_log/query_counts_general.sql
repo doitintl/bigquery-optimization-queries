@@ -31,13 +31,10 @@ WITH
     _rnk = 1),
   hashedQueries AS (
     SELECT
-      src1.query AS query,
-      src1.hashed AS hashed
+      query,
+      hashed
     FROM
-      src AS src1,
-      src AS src2
-    WHERE
-      src1.hashed = src2.hashed ),
+      src ),
   pricedQueries AS (
     SELECT
       hashed,
